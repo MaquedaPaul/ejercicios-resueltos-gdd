@@ -1,0 +1,45 @@
+/*
+8. Mostrar para el o los artículos que tengan stock en todos los depósitos, nombre del
+artículo, stock del depósito que más stock tiene.
+*/
+
+--CONSULTA BASE
+SELECT prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+
+--TEST
+SELECT prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_detalle LIKE 'HALLS X12 STRONG%'
+AND (SELECT stoc_deposito FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_codigo = prod_codigo) = ALL (SELECT depo_codigo FROM DEPOSITO)
+
+
+---TEST 2
+SELECT prod_detalle,stoc_deposito FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+--WHERE prod_detalle LIKE 'HALLS X12 STRONG%'
+WHERE (SELECT depo_codigo FROM DEPOSITO WHERE depo_codigo = stoc_deposito) =ALL (SELECT depo_codigo FROM DEPOSITO WHERE 
+depo_codigo = 00 OR depo_codigo = 03 OR depo_codigo = 05)
+
+
+---TEST 3  ---RESOLVI EL PROBLEMA SIN DARME CUENTA XD
+SELECT prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE stoc_cantidad > 0
+GROUP BY prod_detalle
+HAVING COUNT(*) = 3--(SELECT COUNT(depo_codigo) FROM DEPOSITO)
+--ORDER BY COUNT(stoc_deposito) DESC
+
+--HAVING COUNT(stoc_deposito) = 3 --originalmente
+
+fALTO EL MAX
+
+
+SELECT prod_detalle, MAX(stoc_cantidad) FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE stoc_cantidad > 0
+GROUP BY prod_detalle
+HAVING COUNT(*) = 3--(SELECT COUNT(depo_codigo) FROM DEPOSITO)
+--ORDER BY COUNT(stoc_deposito) DESC

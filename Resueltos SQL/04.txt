@@ -1,0 +1,53 @@
+Mi primera solución
+
+SELECT sum(stoc_cantidad) as 'stock por producto',prod_codigo,prod_detalle, ISNULL(comp_cantidad, 0) FROM STOCK
+JOIN DEPOSITO ON depo_codigo = stoc_deposito
+JOIN Producto ON prod_codigo = stoc_producto
+LEFT JOIN Composicion ON prod_codigo = comp_producto
+GROUP BY prod_codigo, prod_detalle, ISNULL(comp_cantidad, 0)
+HAVING AVG(stoc_cantidad) > 100
+
+Segunda solución mía
+
+SELECT prod_codigo, prod_detalle, sum(comp_cantidad) FROM Producto
+JOIN Composicion ON comp_producto = prod_codigo
+JOIN STOCK ON stoc_producto = prod_codigo
+JOIN DEPOSITO ON depo_codigo = stoc_deposito
+GROUP BY prod_codigo, prod_detalle, comp_cantidad
+HAVING AVG(stoc_cantidad) > 100
+
+
+Soluciones pobres pero funcionales
+
+SELECT 
+	prod_codigo AS 'Codigo', 
+	prod_detalle AS 'Producto', 
+	COUNT(DISTINCT comp_componente) AS 'Componentes'
+FROM Producto
+LEFT JOIN Composicion ON prod_codigo = comp_producto
+JOIN STOCK ON prod_codigo = stoc_producto
+GROUP BY prod_codigo, prod_detalle
+HAVING AVG(stoc_cantidad) > 100
+ORDER BY prod_detalle
+
+select prod_codigo, 
+	   COUNT(item_numero+item_sucursal+item_tipo) as cantidad_item, 
+	   ISNULL(SUM(item_cantidad),0) as cantidad_vendida,
+	   ISNULL(AVG(item_cantidad),0) as cantidad_promedio_vendida
+from Producto 
+left join Item_Factura on item_producto = prod_codigo
+group by prod_codigo
+order by COUNT(item_numero+item_sucursal+item_tipo) desc
+
+
+
+
+
+Solución funcional y buena
+
+SELECT prod_codigo, prod_detalle, COUNT(comp_componente) FROM Producto
+LEFT JOIN Composicion on prod_codigo = comp_producto
+WHERE prod_codigo IN 
+(SELECT stoc_producto FROM STOCK GROUP BY stoc_producto HAVING AVG(stoc_cantidad)>100)
+GROUP BY prod_codigo, prod_detalle
+ORDER BY COUNT(comp_componente) asc

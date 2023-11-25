@@ -1,0 +1,57 @@
+/*
+9. Mostrar el código del jefe, código del empleado que lo tiene como jefe, nombre del
+mismo y la cantidad de depósitos que ambos tienen asignados.
+*/
+--PRIMER INTENTO
+SELECT empl_codigo, empl_jefe, empl_nombre, COUNT(d1.depo_codigo) FROM Empleado
+JOIN DEPOSITO d1 ON d1.depo_encargado = empl_jefe
+JOIN DEPOSITO d2 ON d2.depo_encargado = empl_codigo
+GROUP BY COUNT(d1.depo_codigo),d2.depo_codigo
+
+--SE ME OCURRE USAR UNION
+SELECT empl_codigo, empl_nombre, COUNT(d1.depo_codigo) AS 'Cantidad Empl' FROM Empleado
+JOIN DEPOSITO d1 ON d1.depo_encargado = empl_codigo
+
+GROUP BY empl_codigo, empl_nombre
+
+UNION
+
+SELECT empl_jefe, empl_nombre, COUNT(depo_codigo) AS 'Cantidad Jefe' FROM Empleado
+JOIN DEPOSITO ON depo_encargado = empl_jefe
+GROUP BY empl_jefe, empl_nombre
+
+
+---INTENTO HACER JOIN CON TABLA CREADA EN QUERY
+SELECT empl_codigo, empl_nombre, COUNT(d1.depo_codigo) AS 'Cantidad Empl' FROM Empleado
+JOIN DEPOSITO d1 ON d1.depo_encargado = empl_codigo
+JOIN (SELECT empl_jefe, empl_nombre, COUNT(depo_codigo) AS 'Cantidad Jefe' FROM Empleado
+JOIN DEPOSITO ON depo_encargado = empl_jefe
+GROUP BY empl_jefe, empl_nombre)
+GROUP BY empl_codigo, empl_nombre
+
+
+---SOLUCION DEL PROFE 1
+SELECT empl_jefe,empl_codigo,  --SE PIDEN EN ENUNCIADO
+RTRIM(empl_nombre)+' '+RTRIM(empl_apellido) Nombre, --RTRIM QUITA ESPACIOS
+COUNT(DISTINCT d2.depo_codigo), -- QUITO REPITOS Y MUESTRO CANTIDAD DE DEPOSITOS EN LOS
+COUNT(DISTINCT d1.depo_codigo)  -- QUE SE ENCARGA UN EMPLEADO, Y SU JEFE
+FROM Empleado 
+	LEFT JOIN DEPOSITO d1 ON d1.depo_encargado = empl_codigo 
+	JOIN DEPOSITO d2 ON d2.depo_encargado = empl_jefe
+GROUP BY empl_jefe,empl_codigo,RTRIM(empl_nombre)+' '+RTRIM(empl_apellido)
+
+--SE HACE LEFT JOIN PORQUE, CUANDO METO UN NUEVO JOIN, SE JOINEA CON TODO
+--LO ANTERIOR, POR LO QUE SI SE ELIMINARON POSIBLES MATCHEOS, NO HAY FORMA DE
+--MATCHEAR.
+
+
+---SOLUCION DEL PROFE 2
+SELECT empl_jefe,empl_codigo,  
+RTRIM(empl_nombre)+' '+RTRIM(empl_apellido) Nombre, 
+COUNT(*) 
+FROM Empleado 
+	JOIN DEPOSITO ON depo_encargado = empl_codigo OR depo_encargado = empl_jefe
+GROUP BY empl_jefe,empl_codigo,RTRIM(empl_nombre)+' '+RTRIM(empl_apellido)
+
+
+

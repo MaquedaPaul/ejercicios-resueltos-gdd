@@ -1,0 +1,84 @@
+/*
+34. Escriba una consulta sql que retorne para todos los rubros la cantidad de facturas mal
+facturadas por cada mes del año 2011 Se considera que una factura es incorrecta cuando
+en la misma factura se facturan productos de dos rubros diferentes. Si no hay facturas
+mal hechas se debe retornar 0. Las columnas que se deben mostrar son:
+1- Codigo de Rubro
+2- Mes
+3- Cantidad de facturas mal realizadas.
+*/
+
+--MI SOLUCION (ERRONEA)
+/*
+SELECT rubr_id, MONTH(fact_fecha) AS MES,
+(SELECT COUNT(*) FROM Factura
+ JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ JOIN Producto ON prod_codigo = item_producto
+ WHERE rubr_id <> prod_rubro AND MONTH(fact_fecha) = MONTH(f1.fact_fecha)
+ AND YEAR(fact_fecha) = 2011)
+FROM Factura f1
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto ON item_producto = prod_codigo
+JOIN Rubro ON rubr_id = prod_rubro
+
+WHERE YEAR(fact_fecha) = 2011
+GROUP BY rubr_id, MONTH(fact_fecha)
+ORDER BY MONTH(fact_fecha)
+*/
+--OTRO INTENTO
+
+/*
+SELECT p1.prod_rubro, MONTH(fact_fecha) AS MES,
+(SELECT COUNT(fact_tipo+fact_sucursal+fact_numero) FROM Factura
+ JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ JOIN Producto ON item_producto = prod_codigo
+ WHERE p1.prod_rubro <> prod_rubro AND 
+ fact_tipo+fact_sucursal+fact_numero = f1.fact_tipo+f1.fact_sucursal+f1.fact_numero 
+ )
+FROM Factura f1
+JOIN Item_Factura i1 ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto p1 ON item_producto = p1.prod_codigo
+WHERE YEAR(fact_fecha) = 2011
+GROUP BY p1.prod_rubro, MONTH(fact_fecha)
+ORDER BY MONTH(fact_fecha)
+*/
+
+
+--SOLUCIÓN PROFE
+
+SELECT prod_rubro, MONTH(fact_fecha), COUNT(*)
+FROM Factura
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto ON item_producto = prod_codigo
+WHERE YEAR(fact_fecha) = 2011 AND 
+fact_tipo+fact_sucursal+fact_numero IN 
+	(SELECT item_tipo+item_sucursal+item_numero FROM Item_Factura
+	 JOIN Producto ON prod_codigo = item_producto
+	 GROUP BY item_tipo+item_sucursal+item_numero 
+	 HAVING COUNT(DISTINCT prod_rubro) > 1)
+GROUP BY prod_rubro, MONTH(fact_fecha)
+
+
+--SOLUCIÓN PROFE (MÁS COMPLETA Y A LO QUE REALMENTE SE ESTÁ PIDIENDO)
+SELECT prod_rubro, MONTH(fact_fecha),
+	(SELECT COUNT(DISTINCT fact_tipo+fact_sucursal+fact_numero) FROM Factura 
+	 JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+	 fact_tipo+fact_sucursal+fact_numero
+	 JOIN Producto ON prod_codigo = item_producto
+	 WHERE MONTH(f1.fact_fecha) = MONTH(fact_fecha) AND
+		fact_tipo+fact_sucursal+fact_numero IN
+		(SELECT item_tipo+item_sucursal+item_numero FROM Item_Factura 
+		 JOIN Producto ON prod_codigo = item_producto
+		 GROUP BY item_tipo+item_sucursal+item_numero
+		 HAVING COUNT(DISTINCT prod_rubro) > 1))
+FROM Factura f1 JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto ON prod_codigo = item_producto JOIN Rubro ON rubr_id = prod_rubro
+WHERE YEAR(fact_fecha) = 211:
+GROUP BY prod_rubro, MONTH(fact_fecha)
+ORDER BY 3

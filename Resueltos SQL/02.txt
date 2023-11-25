@@ -1,0 +1,24 @@
+Mi solución
+SELECT prod_codigo,prod_detalle,fact_fecha,item_cantidad FROM Producto p
+INNER JOIN Item_Factura ifac on ifac.item_producto = p.prod_codigo
+INNER JOIN Factura f on 
+f.fact_tipo = ifac.item_tipo AND
+f.fact_sucursal = ifac.item_sucursal AND
+f.fact_numero = ifac.item_numero  
+WHERE fact_fecha >= '2012-01-01'
+ORDER BY item_cantidad
+
+en SQL Server y en muchos otros sistemas de bases de datos, si estás utilizando una cláusula GROUP BY, 
+solo puedes ordenar por columnas incluidas en la cláusula GROUP BY o usar funciones de agregación en la cláusula ORDER BY.
+
+
+
+Solución correcta o propuesta
+Select prod_codigo as codigo, prod_detalle as detalle   --> Selecciono los datos que voy a mostrar (de producto) y les pongo alias
+from Producto
+Join Item_Factura on prod_codigo = item_producto -> Joineo con los item_facturas (hago la intersección) que contienen a los productos
+Join Factura on fact_tipo + fact_sucursal + fact_numero = item_tipo + item_sucursal + item_numero -> Joineo con las facturas 
+(hago la intersección) que contienen a las items_factura
+where YEAR(fact_fecha) = 2012 -> Filtro por año
+group by prod_codigo, prod_detalle -> Descarto repetidos, y agrupo por codigo y detalle
+order by sum(item_cantidad) desc --> Ordeno según la cantidad de productos vendidos -> esto lo hago para cada item_factura

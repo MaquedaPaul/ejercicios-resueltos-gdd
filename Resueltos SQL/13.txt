@@ -1,0 +1,37 @@
+/*
+13. Realizar una consulta que retorne para cada producto que posea composición nombre
+del producto, precio del producto, precio de la sumatoria de los precios por la cantidad
+de los productos que lo componen. Solo se deberán mostrar los productos que estén
+compuestos por más de 2 productos y deben ser ordenados de mayor a menor por
+cantidad de productos que lo componen.
+*/
+
+--QUERY BASE
+SELECT prod_detalle, item_precio FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+GROUP BY prod_detalle, item_precio
+
+--Composición de un producto: productos que son componentes de otros
+SELECT prod_detalle FROM Producto
+JOIN Composicion ON comp_componente = prod_codigo
+
+--Composición de un producto: productos que tienen composiciones a otros
+SELECT prod_detalle FROM Producto
+JOIN Composicion ON comp_producto = prod_codigo
+
+
+--Composición de un producto: producto o componente de producto, que tambien es producto
+SELECT prod_detalle FROM Producto
+JOIN Composicion c1 ON c1.comp_producto = prod_codigo OR comp_componente = prod_codigo
+
+
+--SOLUCION PROFE
+SELECT p.prod_detalle, p.prod_precio,SUM(comp_cantidad *pc.prod_precio)
+FROM Composicion JOIN Producto p on p.prod_codigo = comp_producto
+JOIN Producto pc ON pc.prod_codigo = comp_componente
+GROUP BY p.prod_detalle, p.prod_precio
+HAVING COUNT(*) >= 2
+ORDER BY COUNT(*) DESC
+
+
+

@@ -1,0 +1,73 @@
+/*
+19. En virtud de una recategorizacion de productos referida a la familia de los mismos se
+solicita que desarrolle una consulta sql que retorne para todos los productos:
+ Codigo de producto
+ Detalle del producto
+ Codigo de la familia del producto
+ Detalle de la familia actual del producto
+ Codigo de la familia sugerido para el producto
+ Detalle de la familia sugerido para el producto
+La familia sugerida para un producto es la que poseen la mayoria de los productos cuyo
+detalle coinciden en los primeros 5 caracteres.
+En caso que 2 o mas familias pudieran ser sugeridas se debera seleccionar la de menor
+codigo. Solo se deben mostrar los productos para los cuales la familia actual sea
+diferente a la sugerida
+Los resultados deben ser ordenados por detalle de producto de manera ascendente
+*/
+
+
+
+---Lo que yo hice
+SELECT COUNT(*) FROM Producto p1
+JOIN Producto p2 ON LEFT(p1.prod_detalle,5) = LEFT(p2.prod_detalle,5)
+GROUP BY p1.prod_detalle,p2.prod_detalle
+
+
+SELECT prod_codigo, prod_detalle, prod_familia, fami_detalle FROM Producto
+JOIN Familia ON fami_id = prod_familia
+
+
+
+SELECT p1.prod_detalle AS Detalle,
+fami_detalle AS FamiliaSugerida 
+FROM Producto p1
+JOIN Producto p2 ON LEFT(p1.prod_detalle, 5) = LEFT(p2.prod_detalle, 5) 
+AND p1.prod_codigo<> p2.prod_codigo
+JOIN Familia ON fami_id = p1.prod_familia
+
+GROUP BY p1.prod_detalle, fami_detalle
+ORDER BY COUNT(p2.prod_codigo) DESC
+
+
+--Interpreté mal el ejercicio
+--Vamos devuelta con lo visto en el video
+
+SELECT prod_codigo, prod_detalle, prod_familia, fami_detalle
+,(SELECT TOP 1 fami_detalle FROM Familia 
+	WHERE LEFT(prod_detalle,5) = LEFT(fami_detalle,5) AND fami_id <> prod_familia
+	GROUP BY fami_detalle, fami_id
+	ORDER BY COUNT(*), fami_id ) AS FamiliaSugerida, 
+	(SELECT TOP 1 fami_id FROM Familia 
+	WHERE LEFT(prod_detalle,5) = LEFT(fami_detalle,5) AND fami_id <> prod_familia
+	GROUP BY fami_id 
+	ORDER BY COUNT(*), fami_id ) AS IdFamiliaSugerida
+
+ FROM Producto
+JOIN Familia ON fami_id = prod_familia
+
+
+
+--Resulta que lo interpreté bien pero lo planteé mal XD
+
+SELECT p1.prod_codigo, p1.prod_Detalle, p1.prod_familia, fami_detalle, 
+	(SELECT TOP 1 p2.prod_familia FROM Producto p2
+	 WHERE p1.prod_familia <> p2.prod_familia AND LEFT(p1.prod_detalle,5) = LEFT(p2.prod_detalle,5)
+	 GROUP BY p2.prod_familia
+	 ORDER BY COUNT(*) DESC, p2.prod_familia), 
+	 (SELECT TOP 1 f2.fami_detalle FROM Producto p2
+	 JOIN Familia f2 ON f2.fami_id  = prod_familia
+	 WHERE p1.prod_familia <> p2.prod_familia AND LEFT(p1.prod_detalle,5) = LEFT(p2.prod_detalle,5)
+	 GROUP BY p2.prod_familia, f2.fami_detalle
+	 ORDER BY COUNT(*) DESC, p2.prod_familia)
+FROM Producto p1 JOIN Familia ON p1.prod_familia = fami_id
+

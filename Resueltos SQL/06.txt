@@ -1,0 +1,88 @@
+/*
+Mostrar para todos los rubros de artículos código, detalle, cantidad de artículos de ese
+rubro y stock total de ese rubro de artículos. Solo tener en cuenta aquellos artículos que
+tengan un stock mayor al del artículo ‘00000000’ en el depósito ‘00’.
+*/
+SELECT prod_codigo, prod_detalle FROM Producto
+
+
+Aprendizajes:
+-Si no sé de antemano si los productos tienen rubros, y como yo quiero todos los rubros, hago left join
+-Cuando se hace un left join, en el count tengo que poner prod_codigo, porque el count con el * cuenta 1, y con el prod cod cuenta 0 -> 2023-09-19 2:25hs
+SELECT rubr_id, rubr_detalle, COUNT(prod_codigo),SUM(stoc_cantidad) FROM Rubro
+LEFT JOIN Producto on prod_rubro = rubr_id
+-Si tengo 2 left join, probablemente no hagan falta, porque se anulan entre sí
+
+
+
+----Para entender el ejercicio, conviene separarlo por partes: 
+----Mostrar para todos los rubros de artículos código, detalle, cantidad de artículos de ese rubro. Se cumple en:
+SELECT rubr_id, rubr_detalle, COUNT(prod_codigo) FROM Rubro
+LEFT JOIN Producto on prod_rubro = rubr_id
+GROUP BY rubr_id, rubr_detalle
+ORDER BY rubr_id
+
+
+---y stock total de ese rubro de artículos
+SELECT rubr_id, rubr_detalle,SUM(stoc_cantidad)  FROM Rubro
+JOIN Producto on prod_rubro = rubr_id
+JOIN Stock on stoc_producto = prod_codigo
+GROUP BY rubr_id, rubr_detalle
+
+---Solo tener en cuenta aquellos artículos que tengan un stock mayor al del artículo ‘00000000’ en el depósito ‘00
+SELECT * FROM STOCK
+WHERE stoc_deposito = '00' AND stoc_producto= '00000000'
+
+SELECT * FROM Producto
+WHERE prod_codigo = '00000000'
+
+---Una vez que tenemos las partes, hay que combinarlas
+---Hay que tener en cuenta que la condición  que se pide, no puede estar en el HAVING ya que se está agrupando por rubro y 
+---no por stock(podrían mostrarse artículos que no estén en stock)
+---Entonces, deberíamos colocarlo en el WHERE, para ello primero necesitamos saber aquellos artículos con stock, mayores al articulo 0 en el depósito 0
+
+SELECT prod_codigo, prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE stoc_cantidad > (SELECT stoc_cantidad FROM STOCK WHERE stoc_producto = '00000000' AND stoc_deposito='00' )
+GROUP BY prod_codigo, prod_detalle 
+
+--UNA VEZ SABIDO ESTO, LO METEMOS EN NUESTRA CONSULTO EN EL WHERE
+
+--No puedo hacer 2 group by. Por eso utilizo subconsultas. No se puede agrupar por 2 cosas disyuntivas
+SELECT rubr_id, rubr_detalle,COUNT(DISTINCT prod_codigo),SUM(stoc_cantidad)  FROM Rubro
+LEFT JOIN Producto on prod_rubro = rubr_id
+JOIN Stock on stoc_producto = prod_codigo
+WHERE stoc_producto IN (
+	SELECT stoc_producto FROM STOCK
+	GROUP BY stoc_producto
+	HAVING SUM(stoc_cantidad) > 
+		(SELECT stoc_cantidad FROM STOCK 
+		 WHERE stoc_producto = '00000000' AND stoc_deposito='00' )
+	)
+GROUP BY rubr_id, rubr_detalle
+ORDER BY rubr_id
+
+
+
+---MAL
+SELECT rubr_id, rubr_detalle,SUM(stoc_cantidad)  FROM Rubro
+LEFT JOIN Producto on prod_rubro = rubr_id
+LEFT JOIN Stock on stoc_producto = prod_codigo
+WHERE prod_codigo IN (
+	SELECT prod_codigo FROM Producto
+	JOIN STOCK ON prod_codigo = stoc_producto
+	WHERE stoc_cantidad > 
+		(SELECT stoc_cantidad FROM STOCK 
+		WHERE stoc_producto = '00000000' AND stoc_deposito='00' )
+	GROUP BY prod_codigo)
+GROUP BY rubr_id, rubr_detalle
+ORDER BY rubr_id
+
+-----MAL 
+SELECT rubr_id, rubr_detalle, COUNT(distinct prod_codigo),SUM(stoc_cantidad) FROM Rubro
+LEFT JOIN Producto on prod_rubro = rubr_id
+LEFT JOIN Stock on stoc_producto = prod_codigo
+WHERE stoc_cantidad > (SELECT SUM(stoc_cantidad) FROM STOCK WHERE stoc_deposito = '00' AND stoc_producto= '00000000')
+-- WHERE prod_codigo IN (SELECT stoc_producto FROM STOCK GROUP BY stoc_producto)
+GROUP BY rubr_id, rubr_detalle
+ORDER BY rubr_id

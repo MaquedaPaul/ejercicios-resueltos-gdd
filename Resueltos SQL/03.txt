@@ -1,0 +1,6 @@
+SELECT prod_codigo, prod_detalle, SUM(stoc_cantidad) AS 'stock por producto' FROM Producto
+INNER JOIN stock on stoc_producto = prod_codigo
+GROUP BY prod_codigo, prod_detalle
+ORDER BY prod_detalle ASC
+
+

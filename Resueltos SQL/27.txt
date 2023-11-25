@@ -1,0 +1,91 @@
+--PENDIENTE REVISIÓN
+
+/*
+27. Escriba una consulta sql que retorne una estadística basada en la facturacion por año y
+envase devolviendo las siguientes columnas:
+ Año
+ Codigo de envase
+ Detalle del envase
+ Cantidad de productos que tienen ese envase
+ Cantidad de productos facturados de ese envase
+ Producto mas vendido de ese envase
+ Monto total de venta de ese envase en ese año
+ Porcentaje de la venta de ese envase respecto al total vendido de ese año
+Los datos deberan ser ordenados por año y dentro del año por el envase con más
+facturación de mayor a menor
+*/
+
+
+
+SELECT fact_fecha, enva_codigo, enva_detalle,
+(SELECT COUNT(*) FROM Producto WHERE prod_envase = enva_codigo) AS 'Cantidad de productos que tienen ese envase', 
+--SUM(item_cantidad), --> no es lo que me piden
+COUNT(DISTINCT prod_codigo) AS 'Cantidad de productos facturados de ese envase',
+(SELECT TOP 1 item_producto FROM Item_Factura
+ JOIN Producto ON prod_codigo = item_producto
+ WHERE prod_envase= enva_codigo
+ GROUP BY item_producto
+ ORDER BY SUM(item_cantidad)) AS 'Producto mas vendido de ese envase',
+ SUM(item_cantidad*item_precio)
+ AS 'Monto total de venta de ese envase en ese año',
+ SUM(item_cantidad*item_precio)/ 
+	(SELECT SUM(item_cantidad*item_precio) FROM Item_Factura
+	 JOIN Factura f1 ON item_tipo+item_sucursal+item_numero=
+	 fact_tipo+fact_sucursal+fact_numero
+	 WHERE YEAR(f1.fact_fecha) = YEAR(fact_fecha)),
+ SUM(item_cantidad*item_precio)/ 
+	(SELECT SUM(fact_total- fact_total_impuestos) FROM Factura f1
+	 WHERE YEAR(f1.fact_fecha) = YEAR(fact_fecha)) AS 'Alternativa?'
+FROM Factura
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto ON prod_codigo = item_producto
+JOIN Envases ON enva_codigo = prod_envase
+GROUP BY fact_fecha, enva_codigo, enva_detalle 
+--CORRECCIONES
+--> SE TIENE QUE AGRUPAR POR AÑO
+SELECT YEAR(fact_fecha), enva_codigo, enva_detalle,
+(SELECT COUNT(*) FROM Producto WHERE prod_envase = enva_codigo) AS 'Cantidad de productos que tienen ese envase', 
+COUNT(DISTINCT prod_codigo) AS 'Cantidad de productos facturados de ese envase',
+(SELECT TOP 1 item_producto FROM Item_Factura
+ JOIN Producto ON prod_codigo = item_producto
+ WHERE prod_envase= enva_codigo
+ GROUP BY item_producto
+ ORDER BY SUM(item_cantidad)) AS 'Producto mas vendido de ese envase',
+ SUM(item_cantidad*item_precio)
+ AS 'Monto total de venta de ese envase en ese año',
+ SUM(item_cantidad*item_precio)/ 
+	(SELECT SUM(item_cantidad*item_precio) FROM Item_Factura
+	 JOIN Factura ON item_tipo+item_sucursal+item_numero=
+	 fact_tipo+fact_sucursal+fact_numero
+	 WHERE YEAR(f1.fact_fecha) = YEAR(fact_fecha)),
+ SUM(item_cantidad*item_precio)/ 
+	(SELECT SUM(fact_total- fact_total_impuestos) FROM Factura
+	 WHERE YEAR(f1.fact_fecha) = YEAR(fact_fecha)) AS 'Alternativa?'
+FROM Factura f1
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+JOIN Producto ON prod_codigo = item_producto
+JOIN Envases ON enva_codigo = prod_envase
+GROUP BY YEAR(fact_fecha), enva_codigo, enva_detalle 
+--LA ALTERNATIVA NO DA IGUAL PORQUE HAY FACTURAS MAL REALIZADAS. (PERO ESTÁ BIEN EL PLANTEO)
+
+--SOLUCIÓN PROFE 
+SELECT YEAR(fact_fecha), prod_envase, enva_detalle,
+	(SELECT COUNT(*) FROM Producto WHERE prod_envase = enva_codigo),
+	 COUNT(DISTINCT prod_codigo),
+	(SELECT TOP 1 item_producto FROM Item_Factura 
+	 JOIN Producto ON prod_codigo = item_producto
+		WHERE prod_envase = enva_codigo
+	 GROUP BY item_producto
+	 ORDER BY SUM(item_cantidad) DESC),
+	 SUM(item_precio*item_cantidad),
+	 SUM(item_precio*item_cantidad)/
+	(SELECT SUM(fact_total-fact_total_impuestos) FROM Factura
+		WHERE YEAR(fact_fecha) = YEAR(f1.fact_fecha))
+FROM Factura f1 JOIN Item_Factura ON 
+f1.fact_tipo+f1.fact_sucursal+f1.fact_numero =item_tipo+item_sucursal+item_numero 
+JOIN Producto ON item_producto = prod_codigo JOIN Envases ON enva_codigo = prod_envase
+GROUP BY YEAR(fact_fecha), prod_envase, enva_codigo, enva_detalle
+
+--DA LIGERAMENTE DISTINTO EL PRODUCTO MÁS VENDIDO DE ESE ENVASE

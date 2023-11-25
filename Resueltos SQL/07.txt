@@ -1,0 +1,99 @@
+/*
+7. Generar una consulta que muestre para cada artículo código, detalle, mayor precio
+menor precio y % de la diferencia de precios (respecto del menor Ej.: menor precio =
+10, mayor precio =12 => mostrar 20 %). Mostrar solo aquellos artículos que posean
+stock.
+*/
+
+---Obtengo el mayor precio de un producto concreto
+SELECT prod_codigo, prod_detalle, MAX(item_precio) FROM Producto
+JOIN Item_Factura on prod_codigo = item_producto
+WHERE prod_detalle LIKE 'ENCENDEDOR BX7%'
+GROUP BY prod_codigo, prod_detalle
+
+
+
+---Obtengo el menor precio de un producto concreto
+SELECT prod_codigo, prod_detalle, MAX(item_precio), MIN(item_precio) FROM Producto
+JOIN Item_Factura on prod_codigo = item_producto
+WHERE prod_detalle LIKE 'ENCENDEDOR BX7%'
+GROUP BY prod_codigo, prod_detalle
+
+
+---Obtengo el porcentaje de la diferencia
+SELECT prod_codigo, prod_detalle, 
+MAX(item_precio) AS mayor, MIN(item_precio) AS menor,
+ ((MAX(item_precio) - MIN(item_precio)) / MIN(item_precio)) * 100 FROM Producto
+
+JOIN Item_Factura on prod_codigo = item_producto
+WHERE prod_detalle LIKE 'ENCENDEDOR BX7%'
+GROUP BY prod_codigo, prod_detalle
+
+
+---Obtengo solo aquellos que tengan STOCK
+SELECT prod_codigo, prod_detalle, MAX(item_precio), MIN(item_precio) FROM Producto
+JOIN STOCK on stoc_producto = prod_codigo
+JOIN Item_Factura on prod_codigo = item_producto
+WHERE prod_detalle LIKE 'ENCENDEDOR BX7%'
+GROUP BY prod_codigo, prod_detalle
+
+
+
+---Combino los resultados
+---Aprendizaje: no modifica la atomicidad por la condición que necesitamos (el menor y mayor)
+---Por eso joinear con STOCK no afecta, a pesar de que la multiplicidad cambia
+SELECT prod_codigo, prod_detalle, 
+MAX(item_precio) AS mayor, MIN(item_precio) AS menor,
+ ((MAX(item_precio) - MIN(item_precio)) / MIN(item_precio)) * 100 FROM Producto
+JOIN STOCK on stoc_producto = prod_codigo
+JOIN Item_Factura on prod_codigo = item_producto
+--WHERE stoc_cantidad > 0  --- En este caso está mal esto porque el stock puede ser negativo
+---Lo que implica un préstamo de un depósito a otro
+---Para verificar si hay stock, la suma del stoc cantidad de ese producto en particular
+---Debe ser mayor a 0, por eso lo hago en el HAVING
+GROUP BY prod_codigo, prod_detalle--stoc_cantidad --- No debe estar stoc_cantidad porque sino
+---Estaría tomando la primer fila, como no hace SUM
+HAVING SUM(stoc_cantidad) > 0
+
+
+
+---Otra forma es usar un IN en el WHERE
+----Productos que tienen STOCK
+SELECT stoc_producto, SUM(stoc_cantidad) FROM STOCK
+GROUP BY stoc_producto
+HAVING SUM(stoc_cantidad) > 0
+
+
+
+SELECT prod_codigo, prod_detalle, 
+MAX(item_precio) AS mayor, MIN(item_precio) AS menor,
+ ((MAX(item_precio) - MIN(item_precio)) / MIN(item_precio)) * 100 FROM Producto
+JOIN Item_Factura on prod_codigo = item_producto
+WHERE prod_codigo IN (SELECT stoc_producto FROM STOCK
+GROUP BY stoc_producto
+HAVING SUM(stoc_cantidad) > 0)
+GROUP BY prod_codigo, prod_detalle
+
+
+----Cuál es mejor?
+/*
+El primero itera 3 veces con for
+FOR(X)
+ FOR(Y)
+  FOR(Z)
+
+El segundo itera 2 veces con for y después 1 if porque la subconsulta es estática
+FOR(X)
+ FOR(Y)
+  IF(esta en la subconsulta)
+
+Donde 
+X es cantidad de productos
+	Y es cantidad items
+		Z es cantidad de stock
+
+Si la subconsulta fuera dinámica, tarda lo mismo que la primer opción
+
+Además si se requiriera la cantidad de articulos vendidos, no se podría hacer con la primer
+opción ya que se aumenta la multiplicidad. Con la subconsulta no
+*/

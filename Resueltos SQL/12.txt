@@ -1,0 +1,238 @@
+/*
+12. Mostrar nombre de producto, cantidad de clientes distintos que lo compraron importe
+promedio pagado por el producto, cantidad de depósitos en los cuales hay stock del
+producto y stock actual del producto en todos los depósitos. Se deberán mostrar
+aquellos productos que hayan tenido operaciones en el año 2012 y los datos deberán
+ordenarse de mayor a menor por monto vendido del producto.
+*/
+
+--CONSULTA BASE
+SELECT prod_detalle, COUNT(DISTINCT clie_codigo) FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN Cliente ON fact_cliente = clie_codigo
+GROUP BY prod_detalle
+
+--Importe promedio pagado por el producto
+SELECT prod_detalle, COUNT(DISTINCT clie_codigo), AVG(item_precio) FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN Cliente ON fact_cliente = clie_codigo
+GROUP BY prod_detalle
+
+--STOCK DE UN PRODUCTO EN UN DEPOSITO
+SELECT prod_detalle FROM STOCK
+JOIN Producto ON prod_codigo = stoc_producto
+WHERE stoc_cantidad > 0
+GROUP BY prod_detalle
+--ORDER BY prod_detalle ASC
+
+--Cantidad de depositos en los cuales hay stock del producto --- FALTA AFINAR
+SELECT prod_detalle, COUNT(DISTINCT clie_codigo),AVG(item_precio), 
+	(SELECT COUNT(*) FROM STOCK
+	WHERE prod_detalle IN 
+		(SELECT prod_detalle FROM STOCK
+		JOIN Producto ON prod_codigo = stoc_producto
+		WHERE stoc_cantidad > 0
+		GROUP BY prod_detalle)	
+	) 
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN Cliente ON fact_cliente = clie_codigo
+GROUP BY prod_detalle
+
+
+--Solamente cantidad de depositos que tienen stock de un determinado producto
+
+
+SELECT COUNT(stoc_deposito), prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_detalle NOT IN 
+	(SELECT prod_detalle FROM Producto
+	JOIN STOCK ON prod_codigo = stoc_producto
+	WHERE stoc_cantidad > 0
+	GROUP BY prod_detalle)
+GROUP BY prod_detalle
+
+SELECT prod_detalle, stoc_cantidad FROM Producto
+	JOIN STOCK ON prod_codigo = stoc_producto
+	WHERE stoc_cantidad > 0 AND prod_detalle LIKE 'BUDIN VALENTE X 250g. MARMOLADO%'
+	GROUP BY prod_detalle, stoc_cantidad
+
+SELECT COUNT(stoc_deposito), prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+GROUP BY prod_detalle
+
+SELECT prod_detalle, COUNT(stoc_deposito) FROM Producto
+	JOIN STOCK ON prod_codigo = stoc_producto
+	--WHERE stoc_cantidad > 0 --> esta mal, se explica abajo
+	GROUP BY prod_detalle
+
+SELECT prod_detalle, stoc_deposito FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_detalle LIKE 'PURE de PAPAS%'
+
+SELECT prod_detalle, COUNT(*) FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+GROUP BY prod_detalle,stoc_deposito
+
+
+--Volvemos a la query completa
+
+SELECT prod_detalle, COUNT(DISTINCT fact_cliente),AVG(item_precio), COUNT(DISTINCT stoc_deposito), SUM(stoc_cantidad)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+--JOIN Cliente ON fact_cliente = clie_codigo
+GROUP BY prod_detalle
+--Hay varios detalles 
+/*
+-No hace falta subconsulta en el SELECT
+-Solamente con joinear con factura e item estamos
+-La factura ya contiene el clie_codigo
+-La subconsulta no es necesaria, primero porque utilizamos DISTINCT, segundo porque
+no puedo vender un producto que no tengo STOCK (aunque para eso tengo que asumir
+que el modelo es correcto semánticamente)
+Tercero, el promedio no se ve afectado, porque en la repetición es cuantificablemente
+igual. Es decir, si tengo la misma cantidad de números A,B, y C. El promedio se mantiene igual
+-Es importante poner los DISTINCT porque sino se multiplicaría por la cantidad de
+repeticiones, pero no es necesario en item_precio por lo expuesto anteriormente
+A partir de ahora podemos continuar
+*/
+--Otro aprendizaje sería que cuando hay que hacer un SUM, no consideramos > 0 ni < 0. Sumamos todo
+--QUERY NUEVA BASE
+SELECT prod_detalle, COUNT(DISTINCT fact_cliente),AVG(item_precio), COUNT(DISTINCT stoc_deposito)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+GROUP BY prod_detalle
+ORDER BY prod_detalle
+
+--Subquery necesaria  --> descomentar
+--SELECT COUNT(stoc_deposito) FROM STOCK
+	--WHERE stoc_producto = prod_codigo
+
+
+--QUERY NUEVA BASE PERO CON INTENTO DE SUBQUERY
+
+SELECT prod_detalle, COUNT(DISTINCT fact_cliente),AVG(item_precio), 
+	(SELECT COUNT(stoc_deposito) FROM STOCK
+	WHERE stoc_producto = prod_codigo)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+GROUP BY prod_detalle, prod_codigo --Se tiene que añadir al group by cuando hacemos subquery en select
+ORDER BY prod_detalle
+
+
+--NUEVA QUERY BASE + STOC CANTIDAD --> AHORA SI O SI NECESITO SUBQUERY
+SELECT prod_detalle, COUNT(DISTINCT fact_cliente),AVG(item_precio), COUNT(DISTINCT stoc_deposito),
+	(SELECT SUM(stoc_cantidad) FROM STOCK
+	 WHERE prod_codigo = stoc_producto)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+GROUP BY prod_detalle, prod_codigo
+ORDER BY prod_detalle
+
+--Se deberán mostrar aquellos productos que hayan tenido operaciones en el año 2012 
+SELECT prod_codigo FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+WHERE YEAR(fact_fecha) = 2012
+GROUP BY prod_codigo
+
+
+--NUEVA QUERY BASE + Operaciones pero con subquery
+
+SELECT prod_detalle, COUNT(DISTINCT fact_cliente),AVG(item_precio), COUNT(DISTINCT stoc_deposito),
+	(SELECT SUM(stoc_cantidad) FROM STOCK
+	 WHERE prod_codigo = stoc_producto)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+WHERE prod_codigo IN 
+	--(SELECT prod_codigo FROM Producto --No hace falta producto
+	(SELECT item_producto FROM Item_Factura
+	JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+	WHERE YEAR(fact_fecha) = 2012
+	--GROUP BY item_producto) Sacamos el group by para que no itere, es decir, con que esté una vez ya basta y sobra
+	)
+GROUP BY prod_detalle, prod_codigo
+ORDER BY prod_detalle
+
+
+--NUEVA QUERY BASE + Operaciones pero con sin subquery
+--Está mal porque está contando solo aquellas que sean del 2012
+--En cambio, en la subquery, de las que ya tengo, solo contá
+--Aquellas que TENGAN (y no que únicamente sean) operaciones
+--en 2012
+
+SELECT prod_detalle, 
+COUNT(DISTINCT fact_cliente),
+AVG(item_precio), 
+COUNT(DISTINCT stoc_deposito),
+	(SELECT SUM(stoc_cantidad) FROM STOCK
+	 WHERE prod_codigo = stoc_producto)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+JOIN STOCK ON stoc_producto = prod_codigo
+WHERE YEAR(fact_fecha) = 2012
+GROUP BY prod_detalle, prod_codigo
+ORDER BY prod_detalle
+
+--Que esté en la tabla STOCK un producto no significa que tenga STOCK
+--Significa que ALGUNA vez tuvo stock, o tiene stock
+--El monto vendido de un producto es SUM(item_precio * item_cantidad)
+
+
+
+--NUEVA QUERY BASE + Correcciones + Subquery en stock
+
+SELECT prod_detalle, 
+COUNT(DISTINCT fact_cliente),
+AVG(item_precio), 
+	(SELECT COUNT(stoc_deposito) FROM STOCK
+	 WHERE stoc_producto = prod_codigo AND stoc_cantidad > 0), --Se necesitan los de stoc cantidad mayor a 0,
+	(SELECT SUM(stoc_cantidad) FROM STOCK
+	 WHERE prod_codigo = stoc_producto)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+--JOIN STOCK ON stoc_producto = prod_codigo No hace falta STOCK
+WHERE prod_codigo IN 
+	(SELECT item_producto FROM Item_Factura
+	JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+	WHERE YEAR(fact_fecha) = 2012)
+GROUP BY prod_detalle, prod_codigo
+ORDER BY prod_detalle
+
+
+--QUERY FINAL 
+SELECT prod_detalle, 
+COUNT(DISTINCT fact_cliente),
+AVG(item_precio), 
+	(SELECT COUNT(stoc_deposito) FROM STOCK
+	 WHERE stoc_producto = prod_codigo AND stoc_cantidad > 0),
+	(SELECT SUM(stoc_cantidad) FROM STOCK
+	 WHERE prod_codigo = stoc_producto)
+FROM Producto
+JOIN Item_Factura ON item_producto = prod_codigo
+JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+WHERE prod_codigo IN 
+	(SELECT item_producto FROM Item_Factura
+	JOIN Factura ON fact_tipo+fact_sucursal+fact_numero = item_tipo+item_sucursal+item_numero
+	WHERE YEAR(fact_fecha) = 2012)
+GROUP BY prod_detalle, prod_codigo
+ORDER BY SUM(item_precio*item_cantidad)
+/*Consideraciones:
+-En la versión sin subqueries, es más lento y no es posible el SUM tan sencillo, ya que la atomicidad cambia
+-Si se quiere ir por la sin subqueries, se necesita una subconsulta en el order by
+*/

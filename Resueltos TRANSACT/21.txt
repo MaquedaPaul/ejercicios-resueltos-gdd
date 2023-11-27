@@ -1,0 +1,69 @@
+/*
+21. Desarrolle el/los elementos de base de datos necesarios para que se cumpla
+automaticamente la regla de que en una factura no puede contener productos de
+diferentes familias. En caso de que esto ocurra no debe grabarse esa factura y
+debe emitirse un error en pantalla.
+*/
+
+
+CREATE TRIGGER ej21 
+ON Factura
+INSTEAD OF INSERT
+AS
+BEGIN
+
+	DECLARE @factura CHAR(13)
+	DECLARE c1 CURSOR FOR
+	SELECT fact_tipo+fact_numero+fact_sucursal FROM inserted
+	OPEN c1
+		FETCH NEXT FROM c1 INTO @factura
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+
+		IF (SELECT COUNT(*) FROM Item_Factura i1
+			JOIN Producto p1 ON p1.prod_codigo = i1.item_producto
+			JOIN Item_Factura i2 ON i1.item_tipo+i1.item_numero+i1.item_sucursal=
+			i2.item_tipo+i2.item_numero+i2.item_sucursal
+			JOIN Producto p2 ON p2.prod_codigo = i2.item_producto
+			WHERE i1.item_tipo+i1.item_numero+i1.item_sucursal = @factura
+			AND p1.prod_familia <> p2.prod_familia) > 1
+		BEGIN
+			RAISEERROR('Factura con productos de familias distintas')
+		END
+		ELSE
+		BEGIN
+			INSERT INTO Factura
+		END 
+		FETCH NEXT FROM c1 INTO @factura
+		END
+
+	CLOSE c1
+	DEALLOCATE c1
+
+END
+
+
+--SOLUCION PROFE
+
+CREATE TRIGGER ej21 ON Item_Factura FOR INSERT
+AS
+BEGIN
+	IF EXISTS(SELECT item_tipo+item_sucursal+item_numero FROM inserted
+			  JOIN Producto ON item_producto = prod_codigo
+			  GROUP BY item_tipo+item_sucursal+item_numero
+			  HAVING COUNT(DISTINCT prod_familia) > 1)
+	BEGIN
+		DELETE FROM Item_Factura WHERE item_tipo+item_sucursal+item_numero IN
+		(SELECT item_tipo+item_sucursal+item_numero FROM inserted
+			  JOIN Producto ON item_producto = prod_codigo
+			  GROUP BY item_tipo+item_sucursal+item_numero
+			  HAVING COUNT(DISTINCT prod_familia) > 1)
+		DELETE FROM Factura WHERE fact_tipo+fact_sucursal+fact_numero IN
+		(SELECT item_tipo+item_sucursal+item_numero FROM inserted
+			  JOIN Producto ON item_producto = prod_codigo
+			  GROUP BY item_tipo+item_sucursal+item_numero
+			  HAVING COUNT(DISTINCT prod_familia) > 1)
+		RAISEERROR('Hay items insertados de diferentes familias para al menos una
+		factura.', 16, 1)
+	END
+END

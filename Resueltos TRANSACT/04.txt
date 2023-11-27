@@ -1,0 +1,88 @@
+/*
+4. Cree el/los objetos de base de datos necesarios para actualizar la columna de
+empleado empl_comision con la sumatoria del total de lo vendido por ese
+empleado a lo largo del último año. Se deberá retornar el código del vendedor
+que más vendió (en monto) a lo largo del último año.
+*/
+
+
+
+--El que más vendió en monto
+SELECT TOP 1 empl_codigo FROM Empleado
+JOIN Factura on empl_codigo = fact_vendedor
+WHERE YEAR(fact_fecha) = (SELECT TOP 1 YEAR(fact_fecha) FROM Factura
+						  ORDER BY fact_fecha DESC)
+GROUP BY empl_codigo
+ORDER BY MAX(fact_total) DESC
+
+--Total de lo vendido por un empleado en el último año
+SELECT empl_codigo, SUM(fact_total) FROM Empleado
+LEFT JOIN Factura on empl_codigo = fact_vendedor
+WHERE YEAR(fact_fecha) = (SELECT TOP 1 YEAR(fact_fecha) FROM Factura
+						  ORDER BY fact_fecha DESC)
+GROUP BY empl_codigo
+ORDER BY SUM(fact_total) DESC
+
+SELECT SUM(fact_total) from Factura
+GROUP BY fact_vendedor
+ORDER BY SUM(fact_total) DESC
+
+
+
+--La última fecha del último año
+SELECT TOP 1 YEAR(fact_fecha) FROM Factura
+ORDER BY fact_fecha DESC
+
+
+
+
+CREATE PROCEDURE ej4 @vendedor numeric(6) OUTPUT
+AS
+BEGIN
+	UPDATE Empleado SET empl_comision =
+	(SELECT SUM(fact_total) FROM Factura
+	WHERE fact_vendedor = empl_codigo)
+
+	set @vendedor = (SELECT TOP 1 empl_codigo FROM Empleado
+				JOIN Factura on empl_codigo = fact_vendedor
+				WHERE YEAR(fact_fecha) = 
+					(SELECT TOP 1 YEAR(fact_fecha) FROM Factura
+					 ORDER BY fact_fecha DESC)
+				GROUP BY empl_codigo
+				ORDER BY MAX(fact_total) DESC)
+
+	set @vendedor = (SELECT MAX(empl_comision) FROM Empleado) --como ya actualicé
+	--la comisión, entonces puedo aprovecharla para tomarla
+	RETURN
+END
+
+
+
+CREATE PROCEDURE ej4 @vendedor numeric(6) OUTPUT
+AS
+BEGIN
+	DECLARE @vend NUMERIC(6), @monto NUMERIC(12,2)
+	DECLARE c1 CURSOR FOR
+	SELECT SUM(fact_total), fact_vendedor FROM Factura
+	WHERE YEAR(fact_fecha) = 
+					(SELECT TOP 1 YEAR(fact_fecha) FROM Factura
+					 ORDER BY fact_fecha DESC)
+	GROUP BY fact_vendedor
+	OPEN C1
+	FETCH NEXT c1 INTO @vend, @monto
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		UPDATE Empleado SET empl_comision = @monto WHERE empl_codigo = @vend
+		FETCH NEXT c1 INTO @vend, @monto
+	END
+	CLOSE c1
+	DEALLOCATE c1
+	SELECT @vendedor = MAX(empl_comision) FROM Empleado
+
+
+END
+
+
+
+
+

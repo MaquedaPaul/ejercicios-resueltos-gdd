@@ -1,0 +1,148 @@
+
+/*
+9. Crear el/los objetos de base de datos que ante alguna modificación de un ítem de
+factura de un artículo con composición realice el movimiento de sus
+correspondientes componentes.
+*/
+
+
+
+
+--SELECT * FROM COMPOSICION
+--SELECT * FROM STOCK
+--ARTICULOS CON COMPOSICIÓN
+--SELECT comp_producto FROM Composicion
+/*
+SELECT item_producto FROM Item_Factura
+WHERE item_producto IN (SELECT comp_producto FROM Composicion) --AND está en inserted
+*/
+
+--AQUELLOS DEPOSITOS QUE TENGAN STOCK
+/*
+SELECT depo_codigo FROM DEPOSITO
+JOIN STOCK ON stoc_deposito = depo_codigo AND stoc_producto = @producto
+WHERE stoc_cantidad > 0 
+*/
+--MI SOLUCIÓN, INCOMPLETA Y CON MUCHAS VARIABLES DE MÁS
+CREATE TRIGGER ej9b
+ON Item_factura
+AFTER UPDATE
+AS
+BEGIN
+	DECLARE @cantidad INT
+	DECLARE @producto CHAR(8)
+	DECLARE @ResultadosTabla TABLE (
+    cantidad INT,
+    producto CHAR(8)
+);
+	INSERT INTO @ResultadosTabla
+	SELECT @cantidad = item_cantidad,@producto = item_producto FROM inserted
+	WHERE item_producto IN (SELECT comp_producto FROM Composicion)
+
+	DECLARE @CursorTabla CURSOR;
+	SET @CursorTabla = CURSOR FOR
+    SELECT cantidad, producto
+    FROM @ResultadosTabla;
+	DECLARE @CantidadActual INT
+	DECLARE @ProductoActual CHAR(8)
+	OPEN @CursorTabla;
+
+-- Obtener la primera fila del cursor
+		FETCH NEXT FROM @CursorTabla INTO @CantidadActual, @ProductoActual;
+
+-- Iniciar el bucle para recorrer las filas
+		WHILE @@FETCH_STATUS = 0
+			BEGIN
+			DECLARE @DepositoConStock CHAR(2)
+			SET @DepositoConStock = (SELECT TOP 1 depo_codigo FROM DEPOSITO
+			JOIN STOCK ON stoc_deposito = depo_codigo AND stoc_producto = @ProductoActual
+			WHERE stoc_cantidad > @CantidadActual
+			ORDER BY stoc_cantidad DESC)
+			IF @DepositoConStock IS NULL
+			BEGIN
+				RAISEERROR('No hay depósitos con stock disponible.', 16, 1);
+			END
+
+			UPDATE STOCK
+			SET stoc_cantidad -= @CantidadActual
+			WHERE stoc_producto = @ProductoActual AND stoc_deposito = @DepositoConStock
+
+
+    -- Acciones por cada fila
+    -- Puedes realizar operaciones con @CantidadActual y @ProductoActual
+    -- Obtener la siguiente fila del cursor
+			FETCH NEXT FROM @CursorTabla INTO @CantidadActual, @ProductoActual;
+		END
+	CLOSE @CursorTabla;
+	DEALLOCATE @CursorTabla;
+	END
+GO
+
+--SOLUCIÓN PROFE
+
+--FOR -> AFTER
+CREATE TRIGGER ej9
+ON Item_factura FOR UPDATE
+AS
+BEGIN
+SELECT * FROM inserted JOIN Composicion ON item_producto = comp_producto
+
+UPDATE STOCK SET stoc_cantidad = stoc_cantidad - 
+		(SELECT comp_cantidad*(i.item_cantidad-d.item_cantidad )
+		 FROM inserted i 
+		 JOIN deleted d ON 
+		 i.item_numero+i.item_tipo+i.item_sucursal+i.item_producto =
+		 d.item_numero+d.item_tipo+d.item_sucursal+d.item_producto
+		 JOIN Composicion ON i.item_producto = comp_producto
+		 WHERE comp_componente = stoc_producto AND
+		 stoc_deposito = (SELECT TOP 1 stoc_deposito FROM DEPOSITO
+		 WHERE stoc_producto = comp_componente)
+		 ORDER BY stoc_cantidad DESC)
+		 
+		 
+/*
+DESESTIMAR O TOMAR CON PRECAUCION LO ESCRITO: 
+Cuando se modifica la tabla item factura, y concretamente está dentro de los que son
+comp_producto, es decir tienen componentes, entonces tengo que evaluar primero si la 
+modificación suma o resta. En caso de ser suma, tengo que ir a la tabla Item_Factura
+y agregar nuevas filas, 1 por cada componente, tengo que copiar los datos de 
+item_cantidad e item_precio
+Además se tiene que restar stock
+*/
+
+END
+
+--SOLUCIÓN ALTERNATIVA CON CURSORES
+
+CREATE TRIGGER ej9 ON Item_Factura FOR UPDATE
+AS
+BEGIN
+	DECLARE @COMPONENTE CHAR(8), @CANTIDAD DECIMAL(12,2)
+	DECLARE cursorComponentes CURSOR FOR 
+	SELECT comp_componente, (i.item_cantidad - d.item_cantidad)*comp_cantidad FROM Composicion
+	JOIN inserted i ON comp_producto = i.item_producto 
+	JOIN deleted d ON comp_producto = d.item_producto
+	WHERE i.item_cantidad != d.item_cantidad
+	
+	OPEN cursorComponentes
+	FETCH NEXT FROM cursorComponentes
+	INTO @COMPONENTE, @CANTIDAD
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		UPDATE STOCK SET stoc_cantidad = stoc_cantidad - @CANTIDAD
+		WHERE stoc_producto = @COMPONENTE AND 
+		stoc_deposito = (SELECT TOP 1 stoc_deposito FROM STOCK
+		                 WHERE stoc_producto = @COMPONENTE ORDER BY stoc_cantidad DESC)
+		FETCH NEXT FROM cursorComponentes
+		INTO @COMPONENTE, @CANTIDAD
+	END
+	CLOSE cursorComponentes
+	DEALLOCATE cursorComponentes
+END
+GO
+
+
+
+
+
+

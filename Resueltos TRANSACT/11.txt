@@ -1,0 +1,45 @@
+/*
+11. Cree el/los objetos de base de datos necesarios para que dado un código de
+empleado se retorne la cantidad de empleados que este tiene a su cargo (directa o
+indirectamente). Solo contar aquellos empleados (directos o indirectos) que
+tengan un código mayor que su jefe directo.
+*/
+
+CREATE FUNCTION ej11b (@codigoEmpleado NUMERIC(6,0))
+RETURNS INT
+BEGIN
+	DECLARE @cantidad INT
+	DECLARE @codigoSubordinado NUMERIC(6,0)
+	SELECT @codigoSubordinado = empl_codigo FROM Empleado
+	WHERE empl_jefe = @codigoEmpleado
+	SET @cantidad = (SELECT COUNT(*) FROM Empleado
+	       WHERE empl_jefe = @codigoEmpleado)
+	IF  @cantidad > 0
+	BEGIN
+	WHILE  --HAYCODIGOS
+	BEGIN
+		--ELIJO CODIGO Y
+		SET @cantidad = @cantidad + dbo.ej11b(@nuevoCodigo)
+	END
+	END
+RETURN @cantidad
+END
+--SOLUCIÓN PROFE
+
+CREATE FUNCTION ej11 (@jefe NUMERIC(6))
+RETURNS INT
+BEGIN 
+	DECLARE @empleado NUMERIC(6),@cantidad INT
+	SELECT @cantidad = COUNT(*) FROM Empleado WHERE empl_jefe = @jefe
+	DECLARE c1 CURSOR FOR SELECT COUNT(*) FROM Empleado WHERE empl_jefe = @jefe
+	OPEN c1
+	FETCH NEXT INTO @empleado
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		SET @cantidad = @cantidad + dbo.ej11(@empleado)
+		FETCH NEXT INTO @empleado
+	END
+	CLOSE c1
+	DEALLOCATE c1
+	RETURN @cantidad
+END

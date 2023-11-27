@@ -1,0 +1,60 @@
+/*
+10. Crear el/los objetos de base de datos que ante el intento de borrar 
+un artículo verifique que no exista stock y si es así lo borre en 
+caso contrario que emita un mensaje de error.
+*/
+
+--MI SOLUCIÓN
+
+
+CREATE TRIGGER ej10
+ON Producto
+FOR DELETE 
+AS
+BEGIN
+	IF (SELECT prod_codigo FROM deleted) 
+	IN (SELECT stoc_producto FROM STOCK)
+	BEGIN
+		PRINT('Existe stock para uno de los productos')
+	RETURN
+	END
+
+	DELETE FROM Producto
+	WHERE prod_codigo IN (SELECT prod_codigo FROM deleted)
+
+
+END
+GO
+
+
+--SOLUCIÓN PROFE
+
+SELECT prod_codigo ,prod_detalle FROM Producto
+--JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_codigo NOT in (SELECT stoc_producto FROM STOCK)
+
+SELECT * FROM STOCK
+WHERE stoc_producto = '00000031'
+
+
+SELECT prod_codigo ,prod_detalle FROM Producto
+JOIN STOCK ON prod_codigo = stoc_producto
+WHERE prod_codigo IN 
+	(SELECT stoc_producto FROM STOCK
+	 GROUP BY stoc_producto
+	 HAVING SUM(stoc_cantidad) <= 0)
+
+
+CREATE TRIGGER verificarStock ON Producto
+INSTEAD OF DELETE
+AS
+BEGIN
+	if(SELECT COUNT(*) FROM deleted JOIN STOCK ON prod_codigo = stoc_producto
+	   WHERE stoc_cantidad > 0) > 0
+	   BEGIN
+			PRINT 'QUIERE BORRAR PRODUCTOS QUE TIENE STOCK'
+	   END
+	   ELSE
+	   DELETE FROM Producto WHERE prod_codigo IN (SELECT prod_codigo FROM deleted)
+END
+GO

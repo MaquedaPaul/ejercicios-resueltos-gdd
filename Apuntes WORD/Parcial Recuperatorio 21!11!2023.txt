@@ -1,0 +1,210 @@
+--RESOLUCIÓN PARCIAL RECUPERATORIO
+/*
+1. Mostrar los 2 empleados del mes. Estos son:
+a) El empleado que en el último mes que haya ventas (en el cual se ejecuta 
+la query) vendió más en dinero (fact_total)
+b) El segundo empleado del mes, es aquel que en el mismo mes (en el cual
+se ejecuta la query) vendió más Cantidades (unidades de productos)
+
+Se deberá mostrar Apellido y nombre del empleado en una sola columna y
+para el primero un string que diga (Mejor Facturación y para el Segundo
+Vendió más unidades)
+
+Nota: Si el empleado que más vendio en facturación y cantidades es el
+mismo, solo mostrar una fila que diga el empleado y "Mejor en todo"
+
+Nota: No se permiten sub select en el FROM.
+*/
+
+--SEGUNDO INTENTO
+SELECT 
+RTRIM(empl_apellido)+' '+RTRIM(empl_nombre),
+	CASE 
+		WHEN ((SELECT TOP 1 SUM(item_cantidad*item_precio) FROM Item_Factura
+			  JOIN Factura ON item_tipo+item_sucursal+item_numero=
+			  fact_tipo+fact_sucursal+fact_numero
+			  WHERE fact_fecha > 
+			  DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+			  GROUP BY fact_vendedor
+			  ORDER BY 1 DESC) = 
+			  SUM(i1.item_precio*i1.item_cantidad)) AND 
+			  (SELECT TOP 1 SUM(item_cantidad) FROM Item_Factura
+			  JOIN Factura ON item_tipo+item_sucursal+item_numero=
+			  fact_tipo+fact_sucursal+fact_numero
+			  WHERE fact_fecha > 
+			  DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+			  GROUP BY fact_vendedor
+			  ORDER BY 1 DESC) = 
+			  SUM(i1.item_cantidad)
+		THEN 'Mejor en todo'
+
+		WHEN (SELECT TOP 1 SUM(item_cantidad*item_precio) FROM Item_Factura
+			  JOIN Factura ON item_tipo+item_sucursal+item_numero=
+			  fact_tipo+fact_sucursal+fact_numero
+			  WHERE fact_fecha > 
+			  DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+			  GROUP BY fact_vendedor
+			  ORDER BY 1 DESC) = 
+			  SUM(i1.item_precio*i1.item_cantidad)
+		THEN 'Mejor facturacion'
+		WHEN (SELECT TOP 1 SUM(item_cantidad) FROM Item_Factura
+			  JOIN Factura ON item_tipo+item_sucursal+item_numero=
+			  fact_tipo+fact_sucursal+fact_numero
+			  WHERE fact_fecha > 
+			  DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+			  GROUP BY fact_vendedor
+			  ORDER BY 1 DESC) = 
+			  SUM(i1.item_cantidad)
+		THEN 'Mejor cantidad vendida'
+	END
+--SUM(i1.item_cantidad),
+--SUM(i1.item_precio*i1.item_cantidad)
+FROM Empleado
+JOIN Factura ON fact_vendedor = empl_codigo
+JOIN Item_Factura i1 ON i1.item_tipo+i1.item_sucursal+i1.item_numero=
+fact_tipo+fact_sucursal+fact_numero
+WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+GROUP BY empl_codigo, empl_nombre, empl_apellido
+HAVING 2 IS NOT NULL
+
+
+
+
+
+
+--PRIMER INTENTO
+SELECT RTRIM(empl_apellido)+' '+RTRIM(empl_nombre),
+CASE 
+	WHEN ((SELECT SUM(item_cantidad*item_precio) FROM Item_Factura
+ JOIN Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ WHERE empl_codigo = fact_vendedor AND 
+ fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))) =  
+ (SELECT TOP 1 SUM(item_cantidad*item_precio)
+	FROM Empleado
+	JOIN Factura ON fact_vendedor = empl_codigo
+	JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+	fact_tipo+fact_sucursal+fact_numero
+	WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+	GROUP BY empl_codigo
+	ORDER BY 1 DESC
+)) AND ((SELECT SUM(item_cantidad) FROM Item_Factura
+ JOIN Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ WHERE empl_codigo = fact_vendedor AND 
+ fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))) =
+ (SELECT TOP 1 SUM(item_cantidad)
+	FROM Empleado
+	JOIN Factura ON fact_vendedor = empl_codigo
+	JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+	fact_tipo+fact_sucursal+fact_numero
+	WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+	GROUP BY empl_codigo
+	ORDER BY 1 DESC
+))
+	THEN 'Mejor en todo'
+	WHEN (SELECT SUM(item_cantidad*item_precio) FROM Item_Factura
+ JOIN Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ WHERE empl_codigo = fact_vendedor AND 
+ fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))) =  
+ (SELECT TOP 1 SUM(item_cantidad*item_precio)
+	FROM Empleado
+	JOIN Factura ON fact_vendedor = empl_codigo
+	JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+	fact_tipo+fact_sucursal+fact_numero
+	WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+	GROUP BY empl_codigo
+	ORDER BY 1 DESC
+)
+	THEN 'Mejor facturación'
+	WHEN (SELECT SUM(item_cantidad) FROM Item_Factura
+ JOIN Factura ON item_tipo+item_sucursal+item_numero=
+ fact_tipo+fact_sucursal+fact_numero
+ WHERE empl_codigo = fact_vendedor AND 
+ fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))) =
+ (SELECT TOP 1 SUM(item_cantidad)
+	FROM Empleado
+	JOIN Factura ON fact_vendedor = empl_codigo
+	JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+	fact_tipo+fact_sucursal+fact_numero
+	WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+	GROUP BY empl_codigo
+	ORDER BY 1 DESC
+)
+	THEN 'Mejor cantidad vendida'
+END
+FROM Empleado
+JOIN Factura ON fact_vendedor = empl_codigo
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+GROUP BY empl_codigo, empl_nombre, empl_apellido
+--ORDER BY SUM(item_cantidad*item_precio) DESC, SUM(item_cantidad) DESC
+
+
+
+
+SELECT TOP 1 SUM(item_cantidad*item_precio)
+FROM Empleado
+JOIN Factura ON fact_vendedor = empl_codigo
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+GROUP BY empl_codigo
+ORDER BY 1 DESC
+
+SELECT TOP 1 SUM(item_cantidad)
+FROM Empleado
+JOIN Factura ON fact_vendedor = empl_codigo
+JOIN Item_Factura ON item_tipo+item_sucursal+item_numero=
+fact_tipo+fact_sucursal+fact_numero
+WHERE fact_fecha > DATEADD(DAY, -30, (SELECT MAX(fact_fecha) FROM Factura))
+GROUP BY empl_codigo
+ORDER BY 1 DESC
+
+
+
+
+
+/*
+2. Implementar el/los objetos necesarios para implementar la siguiente
+restricción en linea:
+
+Toda Composición (combo) debe estar compuesta solamente por productos 
+simples. No se permitirá que un combo esté compuesto por ningún otro 
+producto compuesto.
+
+Se sabe que en la actualidad dicha regla se cumple y que la base de datos
+es accedida por n aplicaciones de diferentes tipos y tecnologías
+
+*/
+
+
+CREATE TRIGGER ejParcial 
+ON Composicion
+AFTER INSERT,UPDATE
+AS
+BEGIN
+	
+	IF(SELECT COUNT(*) FROM inserted
+	   WHERE noEsCompuestoSimple(comp_producto, comp_componente)) 
+	> 0
+	ROLLBACK
+END
+
+
+CREATE FUNCTION noEsCompuestoSimple (@producto CHAR(8), @componente CHAR(8))
+RETURNS INT
+AS
+BEGIN
+	IF @producto IN (SELECT comp_componente FROM Composicion)
+	BEGIN
+		RETURN 1
+	END
+	IF @componente IN (SELECT comp_producto FROM Composicion)
+	BEGIN
+		RETURN 1
+	END
+
+	RETURN 0
+END
